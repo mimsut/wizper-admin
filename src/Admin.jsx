@@ -55,6 +55,39 @@ function Dropdown({ label, options, value, onChange, minWidth = 0, align = 'left
   );
 }
 
+/* ── 모달 ── */
+function Modal({ title, sub, onClose, children, footer, width = 480 }) {
+  React.useEffect(() => {
+    const on = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', on);
+    return () => document.removeEventListener('keydown', on);
+  }, [onClose]);
+  return (
+    <div onMouseDown={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(25,31,40,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 24 }}>
+      <div onMouseDown={(e) => e.stopPropagation()} style={{ background: 'var(--surface-card)', borderRadius: 20, width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ font: 'var(--text-title)', letterSpacing: 'var(--tracking-tight)' }}>{title}</div>
+            {sub ? <div style={{ font: 'var(--text-caption)', color: 'var(--text-sub)', marginTop: 2 }}>{sub}</div> : null}
+          </div>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, display: 'inline-flex' }}><Icon name="x" size={20} color="var(--text-weak)" /></button>
+        </div>
+        {children}
+        {footer ? <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>{footer}</div> : null}
+      </div>
+    </div>
+  );
+}
+function LabeledField({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ font: 'var(--text-label)', color: 'var(--text-sub)' }}>{label}</span>
+      {children}
+    </div>
+  );
+}
+const inputStyle = { height: 44, borderRadius: 10, border: '1px solid var(--divider)', background: 'var(--surface-card)', padding: '0 14px', font: '400 14px/1 var(--font-sans)', color: 'var(--text-strong)', outline: 'none', width: '100%' };
+
 /* ── 데이터 ── */
 const PART = [
   { id: 'WPR-101', age: 24, sex: '여', reg: '2026-08-10', day: 26, ema8: 7, cum: 88, sensor: 92, sensor14: 90, voice: 0, voiceCum: 92, push: [0, 0, 0], call: null, st: '정상', ring: true, sync: '3분 전', collect: '2분 전' },
@@ -143,8 +176,43 @@ function Filters({ extra }) {
   );
 }
 
+/* ── 참가자 등록 모달 ── */
+function RegisterModal({ onClose, onDone }) {
+  const [birth, setBirth] = React.useState('');
+  const [sex, setSex] = React.useState('여성');
+  const [phone, setPhone] = React.useState('');
+  const [reg, setReg] = React.useState('2026-09-04');
+  const [ring, setRing] = React.useState('');
+  const nextId = 'WPR-1' + (19 + 1).toString().padStart(2, '0');
+  const valid = /^(19|20)\d{2}$/.test(birth) && /^01\d[-]?\d{3,4}[-]?\d{4}$/.test(phone.replace(/\s/g, ''));
+  return (
+    <Modal title="참가자 등록" sub="완료 시 연구 ID가 자동 발급돼요" onClose={onClose} width={520}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>취소</Button>
+        <Button disabled={!valid} onClick={() => { onDone(nextId); onClose(); }}>{nextId}로 등록</Button>
+      </>}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <LabeledField label="연구 ID (자동 발급)"><input value={nextId} disabled style={{ ...inputStyle, color: 'var(--text-weak)', background: 'var(--surface-sunken)' }} /></LabeledField>
+        <LabeledField label="등록일"><input type="date" value={reg} onChange={(e) => setReg(e.target.value)} style={inputStyle} /></LabeledField>
+        <LabeledField label="출생연도"><input value={birth} onChange={(e) => setBirth(e.target.value)} placeholder="예: 2002" inputMode="numeric" style={inputStyle} /></LabeledField>
+        <LabeledField label="성별">
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['여성', '남성'].map((g) => (
+              <button key={g} onClick={() => setSex(g)} style={{ flex: 1, height: 44, borderRadius: 10, border: 'none', cursor: 'pointer', font: '500 14px/1 var(--font-sans)', background: g === sex ? 'var(--color-primary-weak)' : 'var(--surface-sunken)', color: g === sex ? 'var(--color-primary)' : 'var(--text-sub)' }}>{g}</button>
+            ))}
+          </div>
+        </LabeledField>
+        <LabeledField label="연락처"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" inputMode="tel" style={inputStyle} /></LabeledField>
+        <LabeledField label="WIZPR RING ID (선택)"><input value={ring} onChange={(e) => setRing(e.target.value)} placeholder="예: A-3F27" style={inputStyle} /></LabeledField>
+      </div>
+      <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>등록 시 참가자에게 초대 문자와 앱 설치 링크가 발송돼요 · EMA 시간은 참가자가 온보딩에서 직접 설정</div>
+    </Modal>
+  );
+}
+
 /* ── 1. 참가자 관리 ── */
 function Participants({ onDetail }) {
+  const [register, setRegister] = React.useState(false);
   const rows = PART.map((p, i) => [
     <span style={{ font: '600 13px/18px var(--font-sans)', color: 'var(--text-strong)' }}>{p.id}<span style={{ font: '400 12px/16px var(--font-sans)', color: 'var(--text-weak)', marginLeft: 6 }}>{p.age} · {p.sex}</span></span>,
     p.reg, 'D+' + p.day,
@@ -166,7 +234,7 @@ function Participants({ onDetail }) {
         { label: '오늘 전화 필요', value: 2, unit: '명', sub: 'push count 3회 누적', hot: true },
         { label: '탈락 검토', value: 1, unit: '명', sub: '3개 기준 모두 충족', hot: true }
       ]} />
-      <Filters extra={<Button size="sm" onClick={() => toast('참가자 등록 — 신규 참가자 등록 폼 (목업)')}><Icon name="plus" size={14} color="#fff" />참가자 등록</Button>} />
+      <Filters extra={<Button size="sm" onClick={() => setRegister(true)}><Icon name="plus" size={14} color="#fff" />참가자 등록</Button>} />
       <Panel>
         <Table
           cols={['연구 ID', '등록일', '진행일', 'EMA (최근 8회)', '전날 센서 수집률', '음성 연속 미응답', '푸시 (EMA·DP·LLM)', '최근 전화', '참여 현황', '']}
@@ -174,6 +242,7 @@ function Participants({ onDetail }) {
         />
         <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>행을 클릭하면 상세보기로 이동 · 저조 기준은 연구 설정에서 변경 가능</div>
       </Panel>
+      {register ? <RegisterModal onClose={() => setRegister(false)} onDone={(id) => toast(id + ' 등록 완료 — 초대 문자 발송됨 (목업)')} /> : null}
     </div>
   );
 }
@@ -376,6 +445,7 @@ function PushAdmin() {
     { on: true, name: '마감 전 리마인더', when: '각 회차 T+30분 · 미응답 시 1회 (최대 4회/일)', msg: '이번 회차 응답 가능 시간이 30분밖에 남지 않았습니다. 응답 시간이 지나면 이번 회차는 참여가 어려우니, 잊지 마시고 꼭 확인 부탁드립니다.' }
   ]);
   const toggle = (i) => setRules((rs) => rs.map((r, j) => j === i ? { ...r, on: !r.on } : r));
+  const [edit, setEdit] = React.useState(null);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 16, alignItems: 'start' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -390,7 +460,7 @@ function PushAdmin() {
                   <span style={{ font: '600 14px/20px var(--font-sans)' }}>{r.name}</span>
                   <span style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>{r.when}</span>
                   <span style={{ flex: 1 }} />
-                  <Button size="sm" variant="ghost" onClick={() => toast('문구 수정 — ' + r.name + ' (목업)')}><Icon name="pencil" size={13} />문구 수정</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEdit(ri)}><Icon name="pencil" size={13} />문구 수정</Button>
                 </div>
                 <div style={{ font: 'var(--text-caption)', color: 'var(--text-sub)', marginTop: 4 }}>{r.msg}</div>
               </div>
@@ -410,7 +480,38 @@ function PushAdmin() {
         ]} />
         <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>참가자 문의 대응용 · 참가자별 이력은 상세보기에서 확인</div>
       </Panel>
+      {edit !== null ? (
+        <MsgEditModal rule={rules[edit]} onClose={() => setEdit(null)}
+          onSave={(msg) => { setRules((rs) => rs.map((r, j) => j === edit ? { ...r, msg } : r)); setEdit(null); toast(rules[edit].name + ' 문구 저장됨'); }} />
+      ) : null}
     </div>
+  );
+}
+function MsgEditModal({ rule, onClose, onSave }) {
+  const [msg, setMsg] = React.useState(rule.msg);
+  const vars = ['{n}'];
+  return (
+    <Modal title="문구 수정" sub={rule.name + ' · ' + rule.when} onClose={onClose} width={560}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>취소</Button>
+        <Button disabled={!msg.trim()} onClick={() => onSave(msg.trim())}>저장</Button>
+      </>}>
+      <LabeledField label="알림 문구">
+        <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={5}
+          style={{ ...inputStyle, height: 'auto', padding: '12px 14px', lineHeight: '1.5', resize: 'vertical', fontFamily: 'var(--font-sans)' }} />
+      </LabeledField>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>치환 변수:</span>
+        {vars.map((v) => (
+          <button key={v} onClick={() => setMsg((m) => m + v)} style={{ border: '1px solid var(--divider)', background: 'var(--surface-sunken)', cursor: 'pointer', borderRadius: 6, padding: '3px 8px', font: '600 12px/1 var(--font-sans)', color: 'var(--color-primary)' }}>{v}</button>
+        ))}
+        <span style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>· {'{n}'} = 미응답/참여 횟수로 발송 시 자동 치환</span>
+      </div>
+      <div style={{ background: 'var(--color-primary-tint)', borderRadius: 12, padding: '12px 14px' }}>
+        <div style={{ font: 'var(--text-micro)', color: 'var(--text-sub)', marginBottom: 4 }}>미리보기</div>
+        <div style={{ font: 'var(--text-body2)', color: 'var(--text-body)' }}>{msg.replace(/\{n\}/g, '3')}</div>
+      </div>
+    </Modal>
   );
 }
 

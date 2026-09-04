@@ -258,9 +258,32 @@ function CumStat({ label, v, note }) {
     </div>
   );
 }
+const PERIODS = ['7일', '2주', '1개월', '전체'];
+function periodBars(p, period) {
+  const n = period === '7일' ? 7 : period === '2주' ? 14 : period === '1개월' ? 30 : 24;
+  const seed = p.cum;
+  const bars = Array.from({ length: n }, (_, i) => {
+    const v = (Math.sin((i + 1) * (seed % 7 + 2)) + 1) / 2; // deterministic 0..1
+    const on = v > (100 - seed) / 100 ? 1 : 0;
+    return { on, h: on ? 40 + Math.round(v * 55) : 8 };
+  });
+  const labels = period === '7일' ? ['금', '토', '일', '월', '화', '수', '목']
+    : period === '전체' ? bars.map((_, i) => (i % 4 === 0 ? 'W' + (i / 4 + 1) : ''))
+    : bars.map((_, i) => (i % (n > 20 ? 5 : 2) === 0 ? String(i + 1) : ''));
+  return { bars, labels };
+}
 function Detail({ p, onBack }) {
-  const days = ['금', '토', '일', '월', '화', '수', '목'];
-  const week = [0, 0, 1, 0, 0, 1, 0];
+  const [period, setPeriod] = React.useState('7일');
+  const { bars, labels } = periodBars(p, period);
+  const [calls, setCalls] = React.useState([
+    { date: '09-01 14:20', staff: '김연구', ok: true, memo: 'EMA 저조 사유 확인 — 병원 입원으로 1주 참여 어려움. 복귀 후 재개 안내' },
+    { date: '08-25 11:05', staff: '박연구', ok: false, memo: '문자로 참여 안내 발송' },
+    { date: '08-19 16:40', staff: '김연구', ok: true, memo: '링 충전 문제 해결 안내 · DP push count 초기화' }
+  ]);
+  const [callModal, setCallModal] = React.useState(false);
+  const [memos, setMemos] = React.useState([{ date: '09-01', by: '김연구', text: '기기 특이사항: 구형 단말(Android 11)로 백그라운드 종료 잦음. 배터리 설정 안내 완료' }]);
+  const [memoDraft, setMemoDraft] = React.useState('');
+  const addMemo = () => { if (!memoDraft.trim()) return; setMemos((m) => [{ date: '09-04', by: 'admin_kim', text: memoDraft.trim() }, ...m]); setMemoDraft(''); toast('메모 저장됨'); };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -270,7 +293,7 @@ function Detail({ p, onBack }) {
         <StChip st={p.st} />
         <span style={{ flex: 1 }} />
         <span style={{ font: 'var(--text-caption)', color: 'var(--text-sub)' }}>연락처 010-••••-4417</span>
-        <Button size="sm" variant="secondary" onClick={() => toast('전화 기록 추가 — ' + p.id + ' 통화 메모 작성 (목업)')}><Icon name="phone" size={14} />전화 기록 추가</Button>
+        <Button size="sm" variant="secondary" onClick={() => setCallModal(true)}><Icon name="phone" size={14} />전화 기록 추가</Button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -281,36 +304,43 @@ function Detail({ p, onBack }) {
               <CumStat label="누적 음성 응답률" v={p.voiceCum} note="발화 과제 완료 비율" />
             </div>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ font: 'var(--text-label)', color: 'var(--text-body)' }}>최근 7일 · EMA 참여</span>
-                <span style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>7일 / 2주 / 1개월 / 전체</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ font: 'var(--text-label)', color: 'var(--text-body)' }}>{period === '전체' ? '전체 기간' : '최근 ' + period} · EMA 참여</span>
+                <span style={{ display: 'inline-flex', gap: 2, background: 'var(--surface-sunken)', borderRadius: 8, padding: 2 }}>
+                  {PERIODS.map((pd) => (
+                    <button key={pd} onClick={() => setPeriod(pd)} style={{ border: 'none', cursor: 'pointer', borderRadius: 6, padding: '4px 10px', font: '600 12px/1 var(--font-sans)', background: pd === period ? 'var(--surface-card)' : 'transparent', color: pd === period ? 'var(--color-primary)' : 'var(--text-weak)', boxShadow: pd === period ? '0 1px 2px rgba(25,31,40,.1)' : 'none' }}>{pd}</button>
+                  ))}
+                </span>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {days.map((d, i) => (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: '100%', height: 44, borderRadius: 8, background: week[i] ? 'var(--color-primary-weak)' : 'var(--surface-sunken)', display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
-                      <div style={{ width: '100%', height: (week[i] ? 60 : 8) + '%', background: week[i] ? 'var(--color-primary)' : 'var(--wz-gray-200)' }} />
+              <div style={{ display: 'flex', gap: bars.length > 20 ? 3 : 8, alignItems: 'flex-end' }}>
+                {bars.map((b, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                    <div style={{ width: '100%', height: 44, borderRadius: 4, background: b.on ? 'var(--color-primary-weak)' : 'var(--surface-sunken)', display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: b.h + '%', background: b.on ? 'var(--color-primary)' : 'var(--wz-gray-200)' }} />
                     </div>
-                    <span style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>{d}</span>
+                    <span style={{ font: '400 10px/1 var(--font-sans)', color: 'var(--text-weak)', whiteSpace: 'nowrap' }}>{labels[i]}</span>
                   </div>
                 ))}
               </div>
             </div>
           </Panel>
-          <Panel title="전화 기록" extra={<Button size="sm" variant="ghost" onClick={() => toast('전화 기록 전체 보기 (목업)')}>전체 보기</Button>}>
-            <Table cols={['일자', '담당자', '연결', '메모']} rows={[
-              ['09-01 14:20', '김연구', <Chip tone="success">연결됨</Chip>, 'EMA 저조 사유 확인 — 병원 입원으로 1주 참여 어려움. 복귀 후 재개 안내'],
-              ['08-25 11:05', '박연구', <Chip tone="neutral">부재중</Chip>, '문자로 참여 안내 발송'],
-              ['08-19 16:40', '김연구', <Chip tone="success">연결됨</Chip>, '링 충전 문제 해결 안내 · DP push count 초기화']
-            ]} />
+          <Panel title="전화 기록" extra={<Button size="sm" variant="ghost" onClick={() => setCallModal(true)}><Icon name="plus" size={13} />기록 추가</Button>}>
+            <Table cols={['일자', '담당자', '연결', '메모']} rows={calls.map((c) => [
+              c.date, c.staff, c.ok ? <Chip tone="success">연결됨</Chip> : <Chip tone="neutral">부재중</Chip>,
+              <span style={{ whiteSpace: 'normal' }}>{c.memo}</span>
+            ])} />
           </Panel>
-          <Panel title="메모" extra={<Button size="sm" variant="ghost" onClick={() => toast('메모 전체 보기 (목업)')}>전체 보기</Button>}>
-            <div style={{ font: 'var(--text-body2)', color: 'var(--text-body)', background: 'var(--surface-sunken)', borderRadius: 10, padding: '10px 14px' }}>
-              09-01 · 기기 특이사항: 구형 단말(Android 11)로 백그라운드 종료 잦음. 배터리 설정 안내 완료 — 김연구
-            </div>
+          <Panel title="메모">
+            {memos.map((m, i) => (
+              <div key={i} style={{ font: 'var(--text-body2)', color: 'var(--text-body)', background: 'var(--surface-sunken)', borderRadius: 10, padding: '10px 14px' }}>
+                {m.date} · {m.text} — {m.by}
+              </div>
+            ))}
             <div style={{ display: 'flex', gap: 8 }}>
-              <span style={{ flex: 1, height: 40, borderRadius: 10, background: 'var(--surface-sunken)', display: 'inline-flex', alignItems: 'center', padding: '0 14px', font: 'var(--text-caption)', color: 'var(--text-disabled)' }}>참가자 특이사항을 기록해 두세요</span>
-              <Button size="sm" variant="secondary" onClick={() => toast('메모 작성 저장됨 (목업)')}>작성</Button>
+              <input value={memoDraft} onChange={(e) => setMemoDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addMemo(); }}
+                placeholder="참가자 특이사항을 기록해 두세요"
+                style={{ flex: 1, height: 40, borderRadius: 10, border: '1px solid var(--divider)', background: 'var(--surface-card)', padding: '0 14px', font: 'var(--text-caption)', color: 'var(--text-strong)', outline: 'none', minWidth: 0 }} />
+              <Button size="sm" variant="secondary" onClick={addMemo}>작성</Button>
             </div>
           </Panel>
         </div>
@@ -337,7 +367,42 @@ function Detail({ p, onBack }) {
           </Panel>
         </div>
       </div>
+      {callModal ? (
+        <CallModal pid={p.id} onClose={() => setCallModal(false)}
+          onSave={(rec) => { setCalls((c) => [rec, ...c]); setCallModal(false); toast(p.id + ' 전화 기록 추가됨'); }} />
+      ) : null}
     </div>
+  );
+}
+function CallModal({ pid, onClose, onSave }) {
+  const [staff, setStaff] = React.useState('김연구');
+  const [ok, setOk] = React.useState(true);
+  const [memo, setMemo] = React.useState('');
+  const now = '09-04 ' + '14:0' + (2);
+  return (
+    <Modal title="전화 기록 추가" sub={pid + ' · ' + now} onClose={onClose} width={520}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>취소</Button>
+        <Button disabled={!memo.trim()} onClick={() => onSave({ date: now, staff, ok, memo: memo.trim() })}>저장</Button>
+      </>}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <LabeledField label="담당자">
+          <Dropdown value={staff} onChange={setStaff} options={['김연구', '박연구', '이연구', 'admin_kim', 'admin_park']} minWidth={180} />
+        </LabeledField>
+        <LabeledField label="연결 여부">
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[['연결됨', true], ['부재중', false]].map(([l, v]) => (
+              <button key={l} onClick={() => setOk(v)} style={{ flex: 1, height: 44, borderRadius: 10, border: 'none', cursor: 'pointer', font: '500 14px/1 var(--font-sans)', background: ok === v ? 'var(--color-primary-weak)' : 'var(--surface-sunken)', color: ok === v ? 'var(--color-primary)' : 'var(--text-sub)' }}>{l}</button>
+            ))}
+          </div>
+        </LabeledField>
+      </div>
+      <LabeledField label="메모">
+        <textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={4} placeholder="통화 내용 · 참여 안내 · 조치 사항을 기록하세요"
+          style={{ ...inputStyle, height: 'auto', padding: '12px 14px', lineHeight: '1.5', resize: 'vertical', fontFamily: 'var(--font-sans)' }} />
+      </LabeledField>
+      <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>연결됨으로 저장 시 push count가 초기화돼요 (목업)</div>
+    </Modal>
   );
 }
 
@@ -516,21 +581,73 @@ function MsgEditModal({ rule, onClose, onSave }) {
 }
 
 /* ── 5. 연구 설정 ── */
-function SettingGroup({ icon, title, rows }) {
+function SettingGroup({ icon, title, rows, onChange }) {
+  const [vals, setVals] = React.useState(() => Object.fromEntries(rows.map(([l, v]) => [l, v])));
+  const [editing, setEditing] = React.useState(null);
   return (
     <Panel title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name={icon} size={16} color="var(--color-primary)" />{title}</span>}>
-      {rows.map(([l, v]) => (
-        <div key={l} onClick={() => toast('설정 변경 — ' + l + ' (현재 ' + v + ') · 적용 시점/대상 지정 (목업)')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', margin: '0 -8px', padding: '2px 8px', borderRadius: 8 }}
+      {rows.map(([l]) => (
+        <div key={l} onClick={() => setEditing(l)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', margin: '0 -8px', padding: '4px 8px', borderRadius: 8 }}
           onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-sunken)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
           <span style={{ flex: 1, font: 'var(--text-body2)', color: 'var(--text-body)' }}>{l}</span>
-          <span style={{ font: '600 13px/18px var(--font-sans)', color: 'var(--text-strong)', fontVariantNumeric: 'tabular-nums' }}>{v}</span>
+          <span style={{ font: '600 13px/18px var(--font-sans)', color: 'var(--text-strong)', fontVariantNumeric: 'tabular-nums' }}>{vals[l]}</span>
           <Icon name="pencil" size={13} color="var(--text-weak)" />
         </div>
       ))}
+      {editing !== null ? (
+        <SettingEditModal group={title} label={editing} current={vals[editing]} onClose={() => setEditing(null)}
+          onSave={(nv, when, who) => { setVals((x) => ({ ...x, [editing]: nv })); setEditing(null); onChange && onChange({ label: editing, prev: vals[editing], next: nv, when, who }); toast(editing + ' → ' + nv + ' 저장 (' + when + ' · ' + who + ')'); }} />
+      ) : null}
     </Panel>
   );
 }
+function SettingEditModal({ group, label, current, onClose, onSave }) {
+  const [val, setVal] = React.useState(current);
+  const [when, setWhen] = React.useState('즉시');
+  const [who, setWho] = React.useState('전체');
+  const changed = val.trim() && val !== current;
+  return (
+    <Modal title="설정 변경" sub={group + ' · ' + label} onClose={onClose} width={480}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>취소</Button>
+        <Button disabled={!changed} onClick={() => onSave(val.trim(), when, who)}>변경 적용</Button>
+      </>}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ flex: 1, background: 'var(--surface-sunken)', borderRadius: 10, padding: '10px 14px' }}>
+          <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>현재 적용값</div>
+          <div style={{ font: '600 14px/20px var(--font-sans)', color: 'var(--text-sub)' }}>{current}</div>
+        </div>
+        <Icon name="arrow-left" size={16} color="var(--text-weak)" style={{ transform: 'rotate(180deg)' }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ font: 'var(--text-micro)', color: 'var(--color-primary)', marginBottom: 4 }}>변경 예정값</div>
+          <input value={val} onChange={(e) => setVal(e.target.value)} style={{ ...inputStyle, height: 40, outline: '1.5px solid var(--color-primary-weak)' }} />
+        </div>
+      </div>
+      <LabeledField label="적용 시점">
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['즉시', '지정 일시', '다음 회차'].map((o) => (
+            <button key={o} onClick={() => setWhen(o)} style={{ flex: 1, height: 40, borderRadius: 10, border: 'none', cursor: 'pointer', font: '500 13px/1 var(--font-sans)', background: o === when ? 'var(--color-primary-weak)' : 'var(--surface-sunken)', color: o === when ? 'var(--color-primary)' : 'var(--text-sub)' }}>{o}</button>
+          ))}
+        </div>
+      </LabeledField>
+      <LabeledField label="적용 대상">
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['전체', '기존 참가자', '신규 참가자'].map((o) => (
+            <button key={o} onClick={() => setWho(o)} style={{ flex: 1, height: 40, borderRadius: 10, border: 'none', cursor: 'pointer', font: '500 13px/1 var(--font-sans)', background: o === who ? 'var(--color-primary-weak)' : 'var(--surface-sunken)', color: o === who ? 'var(--color-primary)' : 'var(--text-sub)' }}>{o}</button>
+          ))}
+        </div>
+      </LabeledField>
+      <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>변경 이력은 삭제할 수 없어요 — 수집 조건 해석의 근거로 보존돼요 · 변경분은 앱 업데이트 없이 자동 반영</div>
+    </Modal>
+  );
+}
 function Settings() {
+  const [history, setHistory] = React.useState([
+    ['08-29 10:12', '보상 · 일일 보너스', '500원', '1,000원', '즉시 · 전체', 'admin_kim'],
+    ['08-21 17:40', '이상 기준 · 센서 미수집 판단', '20시간', '16시간', '즉시 · 전체', 'admin_park'],
+    ['08-10 09:00', 'EMA 일정 · 참여 가능 시간', '90분', '60분', '신규 참가자', 'admin_kim']
+  ]);
+  const log = (g) => (c) => setHistory((h) => [['09-04 14:02', g.replace(/^\d+ · /, '') + ' · ' + c.label, c.prev, c.next, c.when + ' · ' + c.who, 'admin_kim'], ...h]);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ background: 'var(--color-primary-tint)', borderRadius: 16, padding: '14px 20px', display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -538,19 +655,15 @@ function Settings() {
         <span style={{ font: 'var(--text-caption)', color: 'var(--text-body)' }}>모든 값은 저장 시 <b>현재 적용값 → 변경 예정값</b> 비교, <b>적용 시점</b>(즉시 / 지정 일시 / 다음 회차)과 <b>적용 대상</b>(전체 / 기존 / 신규 참가자)을 함께 지정합니다. 변경분은 앱 업데이트 없이 자동 반영돼요.</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, alignItems: 'start' }}>
-        <SettingGroup icon="calendar-clock" title="1 · EMA 일정" rows={[['시행 주기', '3일 간격'], ['일일 시행 횟수', '4회'], ['회차 간 간격', '4시간'], ['1회차 시작 범위', '08:00–12:00'], ['회차 시각 고정', '고정 (참가자 변경 불가)'], ['참여 가능 시간', '알림 후 60분']]} />
-        <SettingGroup icon="bell-ring" title="2 · 리마인드 알림" rows={[['미응답 리마인드', '사용'], ['발송 시점', '마감 30분 전'], ['자기보고 설문 적용', '적용'], ['음성 과제 적용', '적용']]} />
-        <SettingGroup icon="message-square" title="3 · 푸시 알림" rows={[['활성 규칙', '5개'], ['발송 조건 · 문구', '푸시 알림 관리에서 편집'], ['전화 필요 기준', 'count 3회 누적']]} />
-        <SettingGroup icon="mic" title="4 · 음성 발화 과제" rows={[['LLM 최대 추가 질문', '3턴'], ['문항 제시 순서', '균형 순환'], ['활성 카테고리', '6 / 6개'], ['최소 · 최대 발화', '20초 · 2분']]} />
-        <SettingGroup icon="coins" title="5 · 보상" rows={[['자기보고 설문 1회', '250원'], ['음성 과제 1회', '500원'], ['일일 보너스 조건', '당일 과제 전체 완료'], ['일일 보너스 금액', '1,000원'], ['지급 방식', '연구 종료 후 일괄']]} />
-        <SettingGroup icon="triangle-alert" title="6 · 참여 · 수집 이상 기준" rows={[['EMA 저조 판정', '최근 8회 중 2회 이하'], ['연속 미응답 경고', '3회'], ['센서 미수집 판단', '16시간'], ['수집률 경고 기준', '전날 50% 미만'], ['링 연결 이상', '12시간 지속'], ['탈락 검토 기준', '누적 25% 이하 × 3종']]} />
-        <SettingGroup icon="radio" title="7 · 센서 수집 항목" rows={[['필수 · 음성/신체활동/앱사용/화면/앱로그', '수집 중'], ['선택 · 위치 정보', '수집 중'], ['선택 · 통신 메타데이터', '수집 중'], ['키보드 동역학', '개발 제외 (1차년도)']]} />
+        <SettingGroup icon="calendar-clock" title="1 · EMA 일정" onChange={log('EMA 일정')} rows={[['시행 주기', '3일 간격'], ['일일 시행 횟수', '4회'], ['회차 간 간격', '4시간'], ['1회차 시작 범위', '08:00–12:00'], ['회차 시각 고정', '고정 (참가자 변경 불가)'], ['참여 가능 시간', '알림 후 60분']]} />
+        <SettingGroup icon="bell-ring" title="2 · 리마인드 알림" onChange={log('리마인드 알림')} rows={[['미응답 리마인드', '사용'], ['발송 시점', '마감 30분 전'], ['자기보고 설문 적용', '적용'], ['음성 과제 적용', '적용']]} />
+        <SettingGroup icon="message-square" title="3 · 푸시 알림" onChange={log('푸시 알림')} rows={[['활성 규칙', '5개'], ['발송 조건 · 문구', '푸시 알림 관리에서 편집'], ['전화 필요 기준', 'count 3회 누적']]} />
+        <SettingGroup icon="mic" title="4 · 음성 발화 과제" onChange={log('음성 발화 과제')} rows={[['LLM 최대 추가 질문', '3턴'], ['문항 제시 순서', '균형 순환'], ['활성 카테고리', '6 / 6개'], ['최소 · 최대 발화', '20초 · 2분']]} />
+        <SettingGroup icon="coins" title="5 · 보상" onChange={log('보상')} rows={[['자기보고 설문 1회', '250원'], ['음성 과제 1회', '500원'], ['일일 보너스 조건', '당일 과제 전체 완료'], ['일일 보너스 금액', '1,000원'], ['지급 방식', '연구 종료 후 일괄']]} />
+        <SettingGroup icon="triangle-alert" title="6 · 참여 · 수집 이상 기준" onChange={log('이상 기준')} rows={[['EMA 저조 판정', '최근 8회 중 2회 이하'], ['연속 미응답 경고', '3회'], ['센서 미수집 판단', '16시간'], ['수집률 경고 기준', '전날 50% 미만'], ['링 연결 이상', '12시간 지속'], ['탈락 검토 기준', '누적 25% 이하 × 3종']]} />
+        <SettingGroup icon="radio" title="7 · 센서 수집 항목" onChange={log('센서 수집 항목')} rows={[['필수 · 음성/신체활동/앱사용/화면/앱로그', '수집 중'], ['선택 · 위치 정보', '수집 중'], ['선택 · 통신 메타데이터', '수집 중'], ['키보드 동역학', '개발 제외 (1차년도)']]} />
         <Panel title="변경 이력" style={{ gridColumn: 'span 2' }}>
-          <Table cols={['변경 일시', '항목', '이전 값', '변경 값', '적용', '변경자']} rows={[
-            ['08-29 10:12', '보상 · 일일 보너스', '500원', '1,000원', '즉시 · 전체', 'admin_kim'],
-            ['08-21 17:40', '이상 기준 · 센서 미수집 판단', '20시간', '16시간', '즉시 · 전체', 'admin_park'],
-            ['08-10 09:00', 'EMA 일정 · 참여 가능 시간', '90분', '60분', '신규 참가자', 'admin_kim']
-          ]} />
+          <Table cols={['변경 일시', '항목', '이전 값', '변경 값', '적용', '변경자']} rows={history} />
           <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>변경 이력은 삭제할 수 없어요 — 수집 조건 해석의 근거로 보존됩니다</div>
         </Panel>
       </div>

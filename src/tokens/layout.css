@@ -1,0 +1,16 @@
+:root {
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --radius-card: 20px; --radius-full: 999px;
+
+  --screen-padding: 20px;
+  --screen-width: 390px;
+
+  --ease-standard: cubic-bezier(0.3, 0, 0, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+}
+a { color: var(--color-primary, #5B50E5); text-decoration: none; }
+a:hover { color: var(--color-primary-pressed, #4A40C7); }

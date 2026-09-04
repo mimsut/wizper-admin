@@ -1,0 +1,23 @@
+@font-face {
+  font-family: 'Pretendard';
+  src: url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', sans-serif;
+
+  /* scale: size / line-height / weight */
+  --text-display: 700 26px/34px var(--font-sans);
+  --text-title:   700 20px/28px var(--font-sans);
+  --text-heading: 600 17px/24px var(--font-sans);
+  --text-body1:   500 15px/22px var(--font-sans);
+  --text-body2:   400 15px/22px var(--font-sans);
+  --text-label:   500 14px/20px var(--font-sans);
+  --text-caption: 400 13px/18px var(--font-sans);
+  --text-micro:   400 12px/16px var(--font-sans);
+
+  --tracking-tight: -0.02em;
+  --tracking-body: -0.01em;
+}

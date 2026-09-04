@@ -259,7 +259,7 @@ function Detail({ p, onBack }) {
           <Panel title="탈락 처리" style={{ outline: '1.5px solid var(--color-danger-weak)' }}>
             {[['누적 EMA 응답률 25% 이하', p.cum <= 25], ['누적 센서 수집률 25% 이하', p.sensor14 <= 25], ['누적 음성 응답률 25% 이하', p.voiceCum <= 25]].map(([l, ok]) => (
               <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name={ok ? 'check-circle-2' : 'circle'} size={16} color={ok ? 'var(--color-danger)' : 'var(--text-disabled)'} />
+                <Icon name={ok ? 'circle-check-big' : 'circle'} size={16} color={ok ? 'var(--color-danger)' : 'var(--text-disabled)'} />
                 <span style={{ font: 'var(--text-body2)', color: ok ? 'var(--text-strong)' : 'var(--text-sub)' }}>{l}</span>
               </div>
             ))}
@@ -442,7 +442,7 @@ function Settings() {
         <SettingGroup icon="message-square" title="3 · 푸시 알림" rows={[['활성 규칙', '5개'], ['발송 조건 · 문구', '푸시 알림 관리에서 편집'], ['전화 필요 기준', 'count 3회 누적']]} />
         <SettingGroup icon="mic" title="4 · 음성 발화 과제" rows={[['LLM 최대 추가 질문', '3턴'], ['문항 제시 순서', '균형 순환'], ['활성 카테고리', '6 / 6개'], ['최소 · 최대 발화', '20초 · 2분']]} />
         <SettingGroup icon="coins" title="5 · 보상" rows={[['자기보고 설문 1회', '250원'], ['음성 과제 1회', '500원'], ['일일 보너스 조건', '당일 과제 전체 완료'], ['일일 보너스 금액', '1,000원'], ['지급 방식', '연구 종료 후 일괄']]} />
-        <SettingGroup icon="alert-triangle" title="6 · 참여 · 수집 이상 기준" rows={[['EMA 저조 판정', '최근 8회 중 2회 이하'], ['연속 미응답 경고', '3회'], ['센서 미수집 판단', '16시간'], ['수집률 경고 기준', '전날 50% 미만'], ['링 연결 이상', '12시간 지속'], ['탈락 검토 기준', '누적 25% 이하 × 3종']]} />
+        <SettingGroup icon="triangle-alert" title="6 · 참여 · 수집 이상 기준" rows={[['EMA 저조 판정', '최근 8회 중 2회 이하'], ['연속 미응답 경고', '3회'], ['센서 미수집 판단', '16시간'], ['수집률 경고 기준', '전날 50% 미만'], ['링 연결 이상', '12시간 지속'], ['탈락 검토 기준', '누적 25% 이하 × 3종']]} />
         <SettingGroup icon="radio" title="7 · 센서 수집 항목" rows={[['필수 · 음성/신체활동/앱사용/화면/앱로그', '수집 중'], ['선택 · 위치 정보', '수집 중'], ['선택 · 통신 메타데이터', '수집 중'], ['키보드 동역학', '개발 제외 (1차년도)']]} />
         <Panel title="변경 이력" style={{ gridColumn: 'span 2' }}>
           <Table cols={['변경 일시', '항목', '이전 값', '변경 값', '적용', '변경자']} rows={[

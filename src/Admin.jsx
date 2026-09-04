@@ -178,19 +178,26 @@ function Filters({ extra }) {
 
 /* ── 참가자 등록 모달 ── */
 function RegisterModal({ onClose, onDone }) {
+  // 참가자는 앱에서 Google 계정으로만 로그인 → 여기서 등록한 Google 이메일 기준으로 연구 ID 발급.
+  // 성별·연락처 등 기본 정보는 관리자가 여기서 입력 (앱에서는 받지 않음).
+  const [email, setEmail] = React.useState('');
   const [birth, setBirth] = React.useState('');
   const [sex, setSex] = React.useState('여성');
   const [phone, setPhone] = React.useState('');
   const [reg, setReg] = React.useState('2026-09-04');
   const [ring, setRing] = React.useState('');
   const nextId = 'WPR-1' + (19 + 1).toString().padStart(2, '0');
-  const valid = /^(19|20)\d{2}$/.test(birth) && /^01\d[-]?\d{3,4}[-]?\d{4}$/.test(phone.replace(/\s/g, ''));
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const valid = emailOk && /^(19|20)\d{2}$/.test(birth) && /^01\d[-]?\d{3,4}[-]?\d{4}$/.test(phone.replace(/\s/g, ''));
   return (
-    <Modal title="참가자 등록" sub="완료 시 연구 ID가 자동 발급돼요" onClose={onClose} width={520}
+    <Modal title="참가자 등록" sub="Google 이메일 기준으로 연구 ID가 자동 발급돼요" onClose={onClose} width={520}
       footer={<>
         <Button variant="ghost" onClick={onClose}>취소</Button>
         <Button disabled={!valid} onClick={() => { onDone(nextId); onClose(); }}>{nextId}로 등록</Button>
       </>}>
+      <LabeledField label="Google 계정 이메일 (로그인 · 연구 ID 발급 기준)">
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="participant@gmail.com" type="email" style={inputStyle} />
+      </LabeledField>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
         <LabeledField label="연구 ID (자동 발급)"><input value={nextId} disabled style={{ ...inputStyle, color: 'var(--text-weak)', background: 'var(--surface-sunken)' }} /></LabeledField>
         <LabeledField label="등록일"><input type="date" value={reg} onChange={(e) => setReg(e.target.value)} style={inputStyle} /></LabeledField>
@@ -205,7 +212,7 @@ function RegisterModal({ onClose, onDone }) {
         <LabeledField label="연락처"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000" inputMode="tel" style={inputStyle} /></LabeledField>
         <LabeledField label="WIZPR RING ID (선택)"><input value={ring} onChange={(e) => setRing(e.target.value)} placeholder="예: A-3F27" style={inputStyle} /></LabeledField>
       </div>
-      <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>등록 시 참가자에게 초대 문자와 앱 설치 링크가 발송돼요 · EMA 시간은 참가자가 온보딩에서 직접 설정</div>
+      <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>등록 시 해당 Google 계정으로 참가자가 앱에 로그인할 수 있어요 · EMA 시간은 참가자가 온보딩에서 직접 설정</div>
     </Modal>
   );
 }

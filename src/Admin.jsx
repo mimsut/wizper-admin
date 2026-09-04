@@ -4,6 +4,57 @@ import { Chip } from './components/core/Chip.jsx';
 import { Icon } from './components/core/Icon.jsx';
 import { ProgressBar } from './components/reward/ProgressBar.jsx';
 
+/* ── 토스트 (목 액션 피드백) ── */
+let _pushToast = () => {};
+function toast(msg) { _pushToast(msg); }
+function ToastHost() {
+  const [items, setItems] = React.useState([]);
+  const idRef = React.useRef(0);
+  React.useEffect(() => {
+    _pushToast = (msg) => {
+      const id = ++idRef.current;
+      setItems((x) => [...x, { id, msg }]);
+      setTimeout(() => setItems((x) => x.filter((t) => t.id !== id)), 2400);
+    };
+    return () => { _pushToast = () => {}; };
+  }, []);
+  return (
+    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', gap: 8, zIndex: 1000, alignItems: 'center' }}>
+      {items.map((t) => (
+        <div key={t.id} style={{ background: 'var(--wz-gray-900)', color: '#fff', font: '500 13px/1.4 var(--font-sans)', padding: '10px 16px', borderRadius: 12, boxShadow: '0 4px 16px rgba(25,31,40,.24)', maxWidth: 420 }}>{t.msg}</div>
+      ))}
+    </div>
+  );
+}
+
+/* ── 드롭다운 ── */
+function Dropdown({ label, options, value, onChange, minWidth = 0, align = 'left' }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const on = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', on);
+    return () => document.removeEventListener('mousedown', on);
+  }, [open]);
+  const shown = value != null ? value : options[0];
+  return (
+    <span ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', borderRadius: 10, background: open ? 'var(--color-primary-weak)' : 'var(--surface-card)', font: '500 13px/1 var(--font-sans)', color: open ? 'var(--color-primary)' : 'var(--text-body)', minWidth }}>
+        {label ? <span style={{ color: 'var(--text-weak)' }}>{label} · </span> : null}{shown}
+        <Icon name="chevron-down" size={14} color={open ? 'var(--color-primary)' : 'var(--text-weak)'} style={{ marginLeft: 'auto', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+      </button>
+      {open ? (
+        <div style={{ position: 'absolute', top: 40, [align]: 0, minWidth: Math.max(160, minWidth), background: 'var(--surface-card)', borderRadius: 12, boxShadow: '0 4px 20px rgba(25,31,40,.16)', padding: 6, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {options.map((o) => (
+            <button key={o} onClick={() => { onChange && onChange(o); setOpen(false); }} style={{ border: 'none', cursor: 'pointer', textAlign: 'left', padding: '8px 12px', borderRadius: 8, font: '500 13px/1 var(--font-sans)', background: o === shown ? 'var(--color-primary-weak)' : 'transparent', color: o === shown ? 'var(--color-primary)' : 'var(--text-body)', whiteSpace: 'nowrap' }}>{o}</button>
+          ))}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
 /* ── 데이터 ── */
 const PART = [
   { id: 'WPR-101', age: 24, sex: '여', reg: '2026-08-10', day: 26, ema8: 7, cum: 88, sensor: 92, sensor14: 90, voice: 0, voiceCum: 92, push: [0, 0, 0], call: null, st: '정상', ring: true, sync: '3분 전', collect: '2분 전' },
@@ -70,16 +121,21 @@ function Summary({ items }) {
   );
 }
 function Filters({ extra }) {
-  const sel = (label) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 12px', borderRadius: 10, background: 'var(--surface-card)', font: '500 13px/1 var(--font-sans)', color: 'var(--text-body)' }}>
-      {label}<Icon name="chevron-down" size={14} color="var(--text-weak)" />
-    </span>
-  );
+  const [age, setAge] = React.useState('전체');
+  const [sex, setSex] = React.useState('전체');
+  const [status, setStatus] = React.useState('전체');
+  const [period, setPeriod] = React.useState('전체');
+  const [q, setQ] = React.useState('');
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      {sel('연령대 · 전체')}{sel('성별 · 전체')}{sel('참여 현황 · 전체')}{sel('기간 · 전체')}
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', borderRadius: 10, background: 'var(--surface-card)', font: '400 13px/1 var(--font-sans)', color: 'var(--text-disabled)', minWidth: 200 }}>
-        <Icon name="search" size={14} color="var(--text-weak)" />연구 ID 검색
+      <Dropdown label="연령대" value={age} onChange={setAge} options={['전체', '10대', '20대', '30대', '40대 이상']} />
+      <Dropdown label="성별" value={sex} onChange={setSex} options={['전체', '여성', '남성']} />
+      <Dropdown label="참여 현황" value={status} onChange={setStatus} options={['전체', '정상', '전화 필요', '탈락 검토', '종료']} />
+      <Dropdown label="기간" value={period} onChange={setPeriod} options={['전체', '최근 7일', '최근 2주', '최근 1개월', '전체 기간']} />
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 36, padding: '0 12px', borderRadius: 10, background: 'var(--surface-card)', minWidth: 200 }}>
+        <Icon name="search" size={14} color="var(--text-weak)" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="연구 ID 검색"
+          style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, minWidth: 0, font: '400 13px/1 var(--font-sans)', color: 'var(--text-strong)' }} />
       </span>
       <span style={{ flex: 1 }} />
       {extra || null}
@@ -110,7 +166,7 @@ function Participants({ onDetail }) {
         { label: '오늘 전화 필요', value: 2, unit: '명', sub: 'push count 3회 누적', hot: true },
         { label: '탈락 검토', value: 1, unit: '명', sub: '3개 기준 모두 충족', hot: true }
       ]} />
-      <Filters extra={<Button size="sm"><Icon name="plus" size={14} color="#fff" />참가자 등록</Button>} />
+      <Filters extra={<Button size="sm" onClick={() => toast('참가자 등록 — 신규 참가자 등록 폼 (목업)')}><Icon name="plus" size={14} color="#fff" />참가자 등록</Button>} />
       <Panel>
         <Table
           cols={['연구 ID', '등록일', '진행일', 'EMA (최근 8회)', '전날 센서 수집률', '음성 연속 미응답', '푸시 (EMA·DP·LLM)', '최근 전화', '참여 현황', '']}
@@ -145,7 +201,7 @@ function Detail({ p, onBack }) {
         <StChip st={p.st} />
         <span style={{ flex: 1 }} />
         <span style={{ font: 'var(--text-caption)', color: 'var(--text-sub)' }}>연락처 010-••••-4417</span>
-        <Button size="sm" variant="secondary"><Icon name="phone" size={14} />전화 기록 추가</Button>
+        <Button size="sm" variant="secondary" onClick={() => toast('전화 기록 추가 — ' + p.id + ' 통화 메모 작성 (목업)')}><Icon name="phone" size={14} />전화 기록 추가</Button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -172,20 +228,20 @@ function Detail({ p, onBack }) {
               </div>
             </div>
           </Panel>
-          <Panel title="전화 기록" extra={<Button size="sm" variant="ghost">전체 보기</Button>}>
+          <Panel title="전화 기록" extra={<Button size="sm" variant="ghost" onClick={() => toast('전화 기록 전체 보기 (목업)')}>전체 보기</Button>}>
             <Table cols={['일자', '담당자', '연결', '메모']} rows={[
               ['09-01 14:20', '김연구', <Chip tone="success">연결됨</Chip>, 'EMA 저조 사유 확인 — 병원 입원으로 1주 참여 어려움. 복귀 후 재개 안내'],
               ['08-25 11:05', '박연구', <Chip tone="neutral">부재중</Chip>, '문자로 참여 안내 발송'],
               ['08-19 16:40', '김연구', <Chip tone="success">연결됨</Chip>, '링 충전 문제 해결 안내 · DP push count 초기화']
             ]} />
           </Panel>
-          <Panel title="메모" extra={<Button size="sm" variant="ghost">전체 보기</Button>}>
+          <Panel title="메모" extra={<Button size="sm" variant="ghost" onClick={() => toast('메모 전체 보기 (목업)')}>전체 보기</Button>}>
             <div style={{ font: 'var(--text-body2)', color: 'var(--text-body)', background: 'var(--surface-sunken)', borderRadius: 10, padding: '10px 14px' }}>
               09-01 · 기기 특이사항: 구형 단말(Android 11)로 백그라운드 종료 잦음. 배터리 설정 안내 완료 — 김연구
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <span style={{ flex: 1, height: 40, borderRadius: 10, background: 'var(--surface-sunken)', display: 'inline-flex', alignItems: 'center', padding: '0 14px', font: 'var(--text-caption)', color: 'var(--text-disabled)' }}>참가자 특이사항을 기록해 두세요</span>
-              <Button size="sm" variant="secondary">작성</Button>
+              <Button size="sm" variant="secondary" onClick={() => toast('메모 작성 저장됨 (목업)')}>작성</Button>
             </div>
           </Panel>
         </div>
@@ -208,7 +264,7 @@ function Detail({ p, onBack }) {
               </div>
             ))}
             <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>3개 기준을 모두 충족한 다음 날부터 처리 가능 · 버튼 클릭 → 코드 입력 → 재확인 후 확정 · 확정 시 수집 즉시 중단(되돌릴 수 없음)</div>
-            <Button size="md" style={{ background: 'var(--color-danger)', width: '100%' }} disabled={!(p.cum <= 25 && p.sensor14 <= 25 && p.voiceCum <= 25)}>탈락 처리</Button>
+            <Button size="md" style={{ background: 'var(--color-danger)', width: '100%' }} disabled={!(p.cum <= 25 && p.sensor14 <= 25 && p.voiceCum <= 25)} onClick={() => toast('탈락 처리 — 코드 입력 → 재확인 단계 (목업, 실제 중단 아님)')}>탈락 처리</Button>
           </Panel>
         </div>
       </div>
@@ -236,7 +292,7 @@ function EmaStatus() {
           <div style={{ font: '700 30px/38px var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>73%</div>
           <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>응답 623 / 발송 853회 · 필터 대상 기준 재계산</div>
         </div>
-        <div style={{ background: 'var(--color-danger-weak)', borderRadius: 16, padding: '16px 20px', cursor: 'pointer' }}>
+        <div onClick={() => toast('저응답 참가자만 필터링 (누적 25% 이하 1명) — 목업')} style={{ background: 'var(--color-danger-weak)', borderRadius: 16, padding: '16px 20px', cursor: 'pointer' }}>
           <div style={{ font: 'var(--text-caption)', color: 'var(--color-danger)' }}>저응답 참가자 (누적 25% 이하)</div>
           <div style={{ font: '700 30px/38px var(--font-sans)', color: 'var(--color-danger)', fontVariantNumeric: 'tabular-nums' }}>1명</div>
           <div style={{ font: 'var(--text-micro)', color: 'var(--color-danger)' }}>클릭 시 저응답 참가자만 표시</div>
@@ -312,28 +368,29 @@ function SensorStatus() {
 
 /* ── 4. 푸시 알림 관리 ── */
 function PushAdmin() {
-  const rules = [
+  const [rules, setRules] = React.useState([
     { on: true, name: '1회차 참여 알림 (기본)', when: '오전 8시 예약 · EMA 시행일', msg: '오늘은 설문 및 대화과제 참여가 가능한 날입니다. 오늘 4번의 설문과 1번의 대화과제를 모두 참여하시면 1,500원이 지급됩니다.' },
     { on: true, name: 'EMA 저조 독려 (+EMA count)', when: '오전 8시 · 최근 8회 중 2회 이하 응답', msg: '오늘은 설문 및 대화과제 참여가 가능한 날입니다. 지난 8회의 설문 중 총 {n}회 참여하셨습니다. 원활한 연구 진행을 위해 성실히 참여해주시면 감사하겠습니다!' },
     { on: true, name: '센서 저조 독려 (+DP count)', when: '오전 8시 · 센서 저조 2일 연속', msg: '어제의 센서 수집이 원활하지 않았습니다. 다음 안내에 따라 조치하신 후 설문에 참여해 주세요. → 문제 항목 설정 화면 링크 포함' },
     { on: true, name: '음성 과제 독려 (+LLM count)', when: '오전 8시 · 대화 과제 2회 이상 연속 미응답', msg: '최근 대화형 과제에 {n}회 연속 참여하지 않으셨습니다. 잊지 말고 참여해 주세요!' },
     { on: true, name: '마감 전 리마인더', when: '각 회차 T+30분 · 미응답 시 1회 (최대 4회/일)', msg: '이번 회차 응답 가능 시간이 30분밖에 남지 않았습니다. 응답 시간이 지나면 이번 회차는 참여가 어려우니, 잊지 마시고 꼭 확인 부탁드립니다.' }
-  ];
+  ]);
+  const toggle = (i) => setRules((rs) => rs.map((r, j) => j === i ? { ...r, on: !r.on } : r));
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 16, alignItems: 'start' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Panel title="자동 발송 규칙" extra={<Button size="sm" variant="secondary"><Icon name="plus" size={14} />규칙 추가</Button>}>
-          {rules.map((r) => (
+        <Panel title="자동 발송 규칙" extra={<Button size="sm" variant="secondary" onClick={() => toast('규칙 추가 — 새 자동 발송 규칙 (목업)')}><Icon name="plus" size={14} />규칙 추가</Button>}>
+          {rules.map((r, ri) => (
             <div key={r.name} style={{ borderRadius: 12, background: 'var(--surface-sunken)', padding: '14px 16px', display: 'flex', gap: 14 }}>
-              <span style={{ width: 40, height: 24, borderRadius: 12, background: r.on ? 'var(--color-primary)' : 'var(--wz-gray-200)', position: 'relative', flexShrink: 0, marginTop: 2 }}>
-                <span style={{ position: 'absolute', top: 3, left: r.on ? 19 : 3, width: 18, height: 18, borderRadius: 9, background: '#fff' }} />
+              <span onClick={() => { toggle(ri); toast(r.name + ' ' + (r.on ? '끔' : '켬')); }} style={{ width: 40, height: 24, borderRadius: 12, cursor: 'pointer', background: r.on ? 'var(--color-primary)' : 'var(--wz-gray-200)', position: 'relative', flexShrink: 0, marginTop: 2, transition: 'background .15s' }}>
+                <span style={{ position: 'absolute', top: 3, left: r.on ? 19 : 3, width: 18, height: 18, borderRadius: 9, background: '#fff', transition: 'left .15s' }} />
               </span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ font: '600 14px/20px var(--font-sans)' }}>{r.name}</span>
                   <span style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>{r.when}</span>
                   <span style={{ flex: 1 }} />
-                  <Button size="sm" variant="ghost"><Icon name="pencil" size={13} />문구 수정</Button>
+                  <Button size="sm" variant="ghost" onClick={() => toast('문구 수정 — ' + r.name + ' (목업)')}><Icon name="pencil" size={13} />문구 수정</Button>
                 </div>
                 <div style={{ font: 'var(--text-caption)', color: 'var(--text-sub)', marginTop: 4 }}>{r.msg}</div>
               </div>
@@ -362,7 +419,8 @@ function SettingGroup({ icon, title, rows }) {
   return (
     <Panel title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name={icon} size={16} color="var(--color-primary)" />{title}</span>}>
       {rows.map(([l, v]) => (
-        <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div key={l} onClick={() => toast('설정 변경 — ' + l + ' (현재 ' + v + ') · 적용 시점/대상 지정 (목업)')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', margin: '0 -8px', padding: '2px 8px', borderRadius: 8 }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-sunken)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
           <span style={{ flex: 1, font: 'var(--text-body2)', color: 'var(--text-body)' }}>{l}</span>
           <span style={{ font: '600 13px/18px var(--font-sans)', color: 'var(--text-strong)', fontVariantNumeric: 'tabular-nums' }}>{v}</span>
           <Icon name="pencil" size={13} color="var(--text-weak)" />
@@ -401,9 +459,10 @@ function Settings() {
 
 /* ── 6. 데이터 export ── */
 function Check({ label, sub, on = true }) {
+  const [checked, setChecked] = React.useState(on);
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-      <Icon name={on ? 'square-check-big' : 'square'} size={18} color={on ? 'var(--color-primary)' : 'var(--text-disabled)'} style={{ marginTop: 1 }} />
+    <div onClick={() => setChecked((c) => !c)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+      <Icon name={checked ? 'square-check-big' : 'square'} size={18} color={checked ? 'var(--color-primary)' : 'var(--text-disabled)'} style={{ marginTop: 1 }} />
       <div>
         <div style={{ font: 'var(--text-body2)', color: 'var(--text-strong)' }}>{label}</div>
         {sub ? <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)' }}>{sub}</div> : null}
@@ -428,7 +487,7 @@ function Export() {
           <Check label="코드북 포함" sub="변수 정의 · 단위 · 산출 방식" />
           <Check label="데이터 품질 로그 포함" sub="수집 정상 여부 · 결측 사유" />
         </Panel>
-        <Button size="lg" style={{ width: '100%' }}><Icon name="download" size={16} color="#fff" />24명 데이터 추출</Button>
+        <Button size="lg" style={{ width: '100%' }} onClick={() => toast('데이터 추출 시작 — wzp_export_0904.zip 생성 중 (목업)')}><Icon name="download" size={16} color="#fff" />24명 데이터 추출</Button>
         <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)', textAlign: 'center' }}>스키마 v1.3 · 공통 키: 연구 ID · 날짜/시각 · 회차 · 변수 · 추출 즉시 이력 기록 (IRB 자료 관리 요건)</div>
       </div>
       <Panel title="추출 이력">
@@ -451,12 +510,13 @@ const NAV = [
 export function Admin() {
   const [tab, setTab] = React.useState(0);
   const [detail, setDetail] = React.useState(null);
+  const [study, setStudy] = React.useState('사회적 고립 1차 (2026)');
   const body = detail !== null && tab === 0
     ? <Detail p={PART[detail]} onBack={() => setDetail(null)} />
     : [<Participants onDetail={setDetail} />, <EmaStatus />, <SensorStatus />, <PushAdmin />, <Settings />, <Export />][tab];
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-sans)', color: 'var(--text-strong)', letterSpacing: 'var(--tracking-body)', background: 'var(--surface-bg)' }}>
-      <div style={{ width: 224, flexShrink: 0, background: 'var(--surface-card)', borderRight: '1px solid var(--divider)', padding: '20px 12px', display: 'flex', flexDirection: 'column', gap: 2, position: 'sticky', top: 0, height: '100vh' }}>
+      <div style={{ width: 224, flexShrink: 0, background: 'var(--surface-card)', borderRight: '1px solid var(--divider)', padding: '20px 12px', display: 'flex', flexDirection: 'column', gap: 2, position: 'sticky', top: 0, height: '100dvh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 10px 18px' }}>
           <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="audio-waveform" size={18} color="#fff" />
@@ -467,8 +527,9 @@ export function Admin() {
           </div>
         </div>
         <div style={{ font: 'var(--text-micro)', color: 'var(--text-weak)', padding: '0 10px 6px' }}>과제 선택</div>
-        <div style={{ margin: '0 6px 14px', padding: '8px 12px', borderRadius: 10, background: 'var(--surface-sunken)', display: 'flex', alignItems: 'center', gap: 8, font: '600 13px/18px var(--font-sans)' }}>
-          사회적 고립 1차 (2026) <span style={{ flex: 1 }} /><Icon name="chevrons-up-down" size={14} color="var(--text-weak)" />
+        <div style={{ margin: '0 6px 14px' }}>
+          <Dropdown value={study} onChange={(s) => { setStudy(s); toast('과제 전환 — ' + s + ' (목업)'); }}
+            options={['사회적 고립 1차 (2026)', '사회적 고립 2차 (2027)', '수면-정서 파일럿 (2026)']} minWidth={196} />
         </div>
         {NAV.map(([ic, l], i) => (
           <div key={l} onClick={() => { setTab(i); setDetail(null); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', background: tab === i ? 'var(--color-primary-weak)' : 'transparent', color: tab === i ? 'var(--color-primary)' : 'var(--text-sub)', font: (tab === i ? '600' : '500') + ' 14px/20px var(--font-sans)' }}>
@@ -489,6 +550,7 @@ export function Admin() {
         </div>
         {body}
       </div>
+      <ToastHost />
     </div>
   );
 }
